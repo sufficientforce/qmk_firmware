@@ -5,6 +5,10 @@
 #include "quantum.h"
 
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /*
      * ┌───┬───┬───┬───┐
@@ -24,6 +28,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_M,   KC_N,   KC_O,   KC_P
     )
 };
+
+
+// Brightness ranges from 0-255
+uint8_t brightness = 128;
+uint8_t brightness_max = 255;
+uint8_t brightness_min = 0;
+uint8_t brightness_step = 16;
 
 
 typedef enum {
@@ -103,7 +114,7 @@ void illuminate_led_by_state(uint8_t led_index, CustomHSV hsv) {
                     (led_index == 14) ? rgb_state.rgb_14 : false)))))))))))))));
 
     if (state) {
-        rgblight_sethsv_at(hsv.h, hsv.s, hsv.v, led_index);
+        rgblight_sethsv_at(hsv.h, hsv.s, brightness, led_index);
     } else {
         rgblight_setrgb_at(0, 0, 0, led_index);
     }
@@ -201,11 +212,16 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 bool encoder_update_user(uint8_t index, bool clockwise) {
     if (index == 0) {
         if (clockwise) {
-            tap_code(KC_B);
+            brightness = min(brightness + brightness_step, brightness_max);
         } else {
-            tap_code(KC_C);
+            brightness = max(brightness - brightness_step, brightness_min);
         }
+
+        illuminate_kb_by_state();
+
+        uprintf("Updating from spinner: %d\n", brightness);
     }
+
     // Do not do any other handling (like volume control, etc)
     return false;
 };
