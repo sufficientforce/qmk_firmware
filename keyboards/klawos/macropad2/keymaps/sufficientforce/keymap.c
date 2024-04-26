@@ -5,9 +5,6 @@
 #include "quantum.h"
 
 
-#define HSV_RED 0, 255, 255
-
-
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /*
      * ┌───┬───┬───┬───┐
@@ -29,6 +26,25 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 
+typedef enum {
+    COLOR_ME = 0,
+    COLOR_LOVE = 1,
+    COLOR_HER = 2,
+    COLOR_DEFAULT = 3
+} ColorSetting;
+
+
+typedef struct {
+    uint8_t h;
+    uint8_t s;
+    uint8_t v;
+} CustomHSV;
+const CustomHSV hsv_red = {0, 255, 255};
+const CustomHSV hsv_blue = {170, 255, 255};
+const CustomHSV hsv_green = {85, 255, 255};
+const CustomHSV hsv_default = {42, 255, 255};
+
+
 typedef union {
     uint32_t raw;
     struct {
@@ -47,6 +63,7 @@ typedef union {
         bool rgb_12 :1;
         bool rgb_13 :1;
         bool rgb_14 :1;
+        unsigned int color_setting :2;
     };
 } rgb_state_t;
 
@@ -59,7 +76,7 @@ void eeconfig_init_user(void) {
 }
 
 
-void illuminate_led_by_state(uint8_t led_index) {
+void illuminate_led_by_state(uint8_t led_index, CustomHSV hsv) {
     if (led_index < 0) {
         return;
     }
@@ -69,9 +86,9 @@ void illuminate_led_by_state(uint8_t led_index) {
     }
 
     bool state = (
-                    (led_index == 0) ? rgb_state.rgb_0 : (
-                    (led_index == 1) ? rgb_state.rgb_1 : (
-                    (led_index == 2) ? rgb_state.rgb_2 : (
+                    (led_index == 0) ? false : (
+                    (led_index == 1) ? false : (
+                    (led_index == 2) ? false : (
                     (led_index == 3) ? rgb_state.rgb_3 : (
                     (led_index == 4) ? rgb_state.rgb_4 : (
                     (led_index == 5) ? rgb_state.rgb_5 : (
@@ -86,7 +103,7 @@ void illuminate_led_by_state(uint8_t led_index) {
                     (led_index == 14) ? rgb_state.rgb_14 : false)))))))))))))));
 
     if (state) {
-        rgblight_sethsv_at(HSV_RED, led_index);
+        rgblight_sethsv_at(hsv.h, hsv.s, hsv.v, led_index);
     } else {
         rgblight_setrgb_at(0, 0, 0, led_index);
     }
@@ -94,8 +111,20 @@ void illuminate_led_by_state(uint8_t led_index) {
 
 
 void illuminate_kb_by_state(void) {
+    CustomHSV hsv;
+
+    if (rgb_state.color_setting == COLOR_ME) {
+        hsv = hsv_blue;
+    } else if (rgb_state.color_setting == COLOR_LOVE) {
+        hsv = hsv_red;
+    } else if (rgb_state.color_setting == COLOR_HER) {
+        hsv = hsv_green;
+    } else {
+        hsv = hsv_default;
+    }
+
     for (uint8_t i = 0; i < RGBLED_NUM; i++) {
-        illuminate_led_by_state(i);
+        illuminate_led_by_state(i, hsv);
     }
 }
 
@@ -113,16 +142,16 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     switch (keycode) {
         case KC_A:
-            rgb_state.rgb_0 = !rgb_state.rgb_0;
+            rgb_state.color_setting = COLOR_ME;
             break;
         case KC_B:
-            rgb_state.rgb_1 = !rgb_state.rgb_1;
+            rgb_state.color_setting = COLOR_LOVE;
             break;
         case KC_C:
-            rgb_state.rgb_2 = !rgb_state.rgb_2;
+            rgb_state.color_setting = COLOR_HER;
             break;
         case KC_D:
-            // no LED for the knob
+            rgb_state.color_setting = COLOR_DEFAULT;
             break;
         case KC_E:
             rgb_state.rgb_3 = !rgb_state.rgb_3;
