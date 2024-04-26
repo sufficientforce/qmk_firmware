@@ -31,10 +31,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 
 // Brightness ranges from 0-255
-uint8_t brightness = 128;
-uint8_t brightness_max = 255;
-uint8_t brightness_min = 0;
-uint8_t brightness_step = 16;
+uint8_t BRIGHTNESS_DEFAULT = 128;
+uint8_t BRIGHTNESS_MAX = 255;
+uint8_t BRIGHTNESS_MIN = 0;
+uint8_t BRIGHTNESS_STEP = 16;
+
+
+static deferred_token delayed_write_token = INVALID_DEFERRED_TOKEN;
+static const uint16_t WRITE_DELAY = 2000;
 
 
 typedef enum {
@@ -75,6 +79,7 @@ typedef union {
         bool rgb_13 :1;
         bool rgb_14 :1;
         unsigned int color_setting :2;
+        uint8_t brightness :8;
     };
 } rgb_state_t;
 
@@ -84,6 +89,8 @@ rgb_state_t rgb_state;
 void eeconfig_init_user(void) {
     eeconfig_init();
     rgb_state.raw = 0;
+    rgb_state.color_setting = COLOR_DEFAULT;
+    rgb_state.brightness = BRIGHTNESS_DEFAULT;
 }
 
 
@@ -114,7 +121,7 @@ void illuminate_led_by_state(uint8_t led_index, CustomHSV hsv) {
                     (led_index == 14) ? rgb_state.rgb_14 : false)))))))))))))));
 
     if (state) {
-        rgblight_sethsv_at(hsv.h, hsv.s, brightness, led_index);
+        rgblight_sethsv_at(hsv.h, hsv.s, rgb_state.brightness, led_index);
     } else {
         rgblight_setrgb_at(0, 0, 0, led_index);
     }
@@ -209,17 +216,33 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 
+uint32_t delayed_write_callback(uint32_t trigger_time, void *cb_arg) {
+    if (delayed_write_token == INVALID_DEFERRED_TOKEN) {
+        return 0;
+    }
+
+    delayed_write_token = INVALID_DEFERRED_TOKEN;
+    eeconfig_update_user(rgb_state.raw);
+
+    return 0;
+}
+
+
 bool encoder_update_user(uint8_t index, bool clockwise) {
     if (index == 0) {
         if (clockwise) {
-            brightness = min(brightness + brightness_step, brightness_max);
+            rgb_state.brightness = min(rgb_state.brightness + BRIGHTNESS_STEP, BRIGHTNESS_MAX);
         } else {
-            brightness = max(brightness - brightness_step, brightness_min);
+            rgb_state.brightness = max(rgb_state.brightness - BRIGHTNESS_STEP, BRIGHTNESS_MIN);
         }
 
         illuminate_kb_by_state();
 
-        uprintf("Updating from spinner: %d\n", brightness);
+        if (delayed_write_token == INVALID_DEFERRED_TOKEN) {
+            delayed_write_token = defer_exec(WRITE_DELAY, delayed_write_callback, NULL);
+        } else {
+            extend_deferred_exec(delayed_write_token, WRITE_DELAY);
+        }
     }
 
     // Do not do any other handling (like volume control, etc)
