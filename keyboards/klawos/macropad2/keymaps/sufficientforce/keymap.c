@@ -54,11 +54,11 @@ typedef struct {
     uint8_t s;
     uint8_t v;
 } CustomHSV;
+
 const CustomHSV hsv_red = {0, 255, 255};
 const CustomHSV hsv_blue = {170, 255, 255};
 const CustomHSV hsv_green = {85, 255, 255};
-const CustomHSV hsv_default = {42, 255, 255};
-
+const CustomHSV hsv_default = {19, 255, 255};
 
 typedef union {
     uint32_t raw;
@@ -160,13 +160,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     switch (keycode) {
         case KC_A:
-            rgb_state.color_setting = COLOR_ME;
+            rgb_state.color_setting = COLOR_HER;
             break;
         case KC_B:
             rgb_state.color_setting = COLOR_LOVE;
             break;
         case KC_C:
-            rgb_state.color_setting = COLOR_HER;
+            rgb_state.color_setting = COLOR_ME;
             break;
         case KC_D:
             rgb_state.color_setting = COLOR_DEFAULT;
